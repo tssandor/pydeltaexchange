@@ -20,53 +20,51 @@ def generate_signature(secret, message):
     hash = hmac.new(secret, message, hashlib.sha256)
     return hash.hexdigest()
 
-def get_time_stamp():
+def internal_get_time_stamp():
     d = datetime.datetime.utcnow()
     epoch = datetime.datetime(1970,1,1)
     return str(int((d - epoch).total_seconds()))
 
+def generate_signature_data(url, path, payload, method, query_string):
+    timestamp = internal_get_time_stamp()
+    signature_data = method + timestamp + path + query_string + payload
+    signature = generate_signature(api_secret, signature_data)
+    return signature, timestamp
+
 # DELTA EXCHANGE CALLS START HERE
 
 def get_balance(asset):
-    url = "https://api.delta.exchange/v2/wallet/balances"
-    payload = ""
-    method = "GET"
-    timestamp = get_time_stamp()
-    path = "/v2/wallet/balances"
-    query_string = ""
-    signature_data = method + timestamp + path + query_string + payload
-    signature = generate_signature(api_secret, signature_data)
-
-    timestamp = get_time_stamp()
-
+    signature, timestamp = generate_signature_data("https://api.delta.exchange/v2/wallet/balances", "/v2/wallet/balances", "", "GET", "")
     headers = {
         "Accept": "application/json",
         "api-key": api_key,
         "signature": signature,
-        "timestamp": timestamp
+        "timestamp": internal_get_time_stamp()
     }
 
     r = requests.get("https://api.delta.exchange/v2/wallet/balances", params={}, headers = headers)
-
     response = r.json()
     result = response["result"]
-    # THIS IS NOT READY
-    if asset == "USDT":
+
+    # This should be tweaked to enumerate the JSON as currently the positions are hardcoded, not ideal.
+    # But unless Delta introduces a breaking change, it should work.
+    if asset == "ETH":
+        return result[0]["available_balance"]
+    elif asset == "BTC":
+        return result[1]["available_balance"]
+    elif asset == "XRP":
+        return result[2]["available_balance"]
+    elif asset == "USDT":
         return result[3]["available_balance"]
-    # NEED TO FINISH FOR OTHER ASSETS. CURRENTLY ONLY RETURNS USDT.
+    elif asset == "USDC":
+        return result[4]["available_balance"]
+    elif asset == "DAI":
+        return result[5]["available_balance"]
+    elif asset == "DETO":
+        return result[6]["available_balance"]
 
 def get_user_id():
-    url = "https://api.delta.exchange/v2/wallet/balances"
-    payload = ""
-    method = "GET"
-    timestamp = get_time_stamp()
-    path = "/v2/wallet/balances"
-    query_string = ""
-    signature_data = method + timestamp + path + query_string + payload
-    signature = generate_signature(api_secret, signature_data)
-
-    timestamp = get_time_stamp()
-
+    signature, timestamp = generate_signature_data("https://api.delta.exchange/v2/wallet/balances", "/v2/wallet/balances", "", "GET", "")
     headers = {
         "Accept": "application/json",
         "api-key": api_key,
@@ -75,54 +73,94 @@ def get_user_id():
     }
 
     r = requests.get("https://api.delta.exchange/v2/wallet/balances", params={}, headers = headers)
-
     json_response = r.json()
     user_id = json_response["result"][0]["user_id"]
+
     return user_id
 
 def get_products():
     headers = {
         "Accept": "application/json"
     }
-
     r = requests.get("https://api.delta.exchange/v2/products", params={}, headers = headers)
 
     output = r.json()
+    # This returns a monster huge products JSON, see delta_products.txt
     return output
 
-def get_open_orders():
-    url = "https://api.delta.exchange/v2/orders"
-    payload = ""
-    method = "GET"
-    timestamp = get_time_stamp()
-    path = "/v2/orders"
-    query_string = "?product_id=139&state=open"
-    signature_data = method + timestamp + path + query_string + payload
-    signature = generate_signature(api_secret, signature_data)
-
-    req_headers = {
+def get_open_orders(product_id):
+    # Gets open orders by product ID.
+    # You can find the product ID in the delta_products.txt or by calling get_products()
+    # BTCUSDT is 139.
+    # No open orders returns None
+    signature, timestamp = generate_signature_data("https://api.delta.exchange/v2/orders", "/v2/orders", "", "GET", "?product_id="+ str(product_id) + "&state=open")
+    headers = {
         "api-key": api_key,
         "timestamp": timestamp,
         "signature": signature,
         "Content-Type": "application/json"
     }
-    
-    # THIS CURRENTLY ONLY GETS OPEN ORDERS FOR THE BTCUSDT PERPS (PRODUCT ID 139)
-    # NEEDS TO BE ADAPTED FOR ALL THE OTHER PAIRS, TOO
-    r = requests.get("https://api.delta.exchange/v2/orders?product_id=139&state=open", params={}, headers = req_headers)
-
+    req_url = "https://api.delta.exchange/v2/orders?product_id=" + str(product_id) + "&state=open"
+    r = requests.get(req_url, params={}, headers = headers)
     result = r.json()
-    return result
+
+    if result["meta"]["total_count"] > 0:
+        return result
+    else:
+        return None
 
 def get_price_for_symbol(symbol):
     headers = {
         "Accept": "application/json"
     }
     get_url = "https://api.delta.exchange/v2/tickers/" + symbol
-
     r = requests.get(get_url, params={}, headers = headers)
 
     response = r.json()
     # Returns the mark price (not the last traded price)
     mark_price = response["result"]["mark_price"]
     return mark_price
+
+def convert_dollar_order_size_to_btc_contract_size(dollar_size):
+    # Converts dollar order size to USDT-settled BTCUSDT Perps contract size
+    btc_price = get_price_for_symbol("BTCUSDT")
+    price_of_one_contract = float(btc_price) / 1000
+    return int(dollar_size / price_of_one_contract) # Returns the integer as that's the max size
+
+def post_market_order(product_id, side, size, time_in_force, reduce_only):
+    params = {
+        "product_id": int(product_id),
+        "side": side,
+        "size": size,
+        "order_type": "market_order",
+        "time_in_force": time_in_force,
+        "reduce_only": reduce_only
+    }
+    query_string = f'?product_id={product_id}&side={side}&size={size}&order_type=market_order&time_in_force={time_in_force}&reduce_only={reduce_only}'
+    print(query_string)
+    signature, timestamp = generate_signature_data("https://api.delta.exchange/v2/orders", "/v2/orders", "", "POST", query_string)
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'api-key': api_key,
+        'signature': signature,
+        'timestamp': timestamp
+    }
+    r = requests.post('https://api.delta.exchange/v2/orders', params=params, headers=headers)
+    response = r.json()
+
+    if response["success"]:
+        return response["result"]
+        # {'result': {'average_fill_price': string,
+        #             'created_at': string,
+        #             'id': int,
+        #             'side': 'sell',
+        #             'size': 1},
+    else:
+        return None
+
+def market_long_btcusdt(size):
+    return post_market_order(139, "buy", size, "gtc", "false")
+
+def market_short_btcusdt(size):
+    return post_market_order(139, "short", size, "gtc", "false")
