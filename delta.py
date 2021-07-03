@@ -178,6 +178,7 @@ def get_position(product_id):
         return response["result"]
         # {'entry_price': None, 'size': 0, 'timestamp': 1625319008999873} <-- a 0 position is a ["success"]["result"] too!
         # {'entry_price': '34581.50000000', 'size': 1, 'timestamp': 1625319163628629}
+        # {'entry_price': '34573.50000000', 'size': -1, 'timestamp': 1625326952163651} <-- negative if it's a short
     else:
         return None
 
@@ -187,9 +188,19 @@ def market_buy_btcusdt(size):
 def market_sell_btcusdt(size):
     return post_market_order(139, "sell", size, "gtc", "false")
 
+def market_close_position(product_id):
+    current_position = get_position(product_id)
+    current_size = current_position["size"]
+    if current_size == 0:
+        return None
+    elif current_size > 0:
+        return post_market_order(product_id, "sell", current_size, "gtc", "true")
+    else:
+        return post_market_order(product_id, "buy", (current_size * -1), "gtc", "true")
+
+
 # Testing
-# pprint(market_buy_btcusdt(1))
+# market_buy_btcusdt(1)
 # pprint(get_position(139))
 # time.sleep(5)
-# pprint(market_sell_btcusdt(1))
-# pprint(get_position(139))
+# pprint(market_close_position(139))
