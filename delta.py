@@ -6,8 +6,11 @@ import datetime
 import os
 from dotenv import load_dotenv
 load_dotenv()
+# Testing
+import time
+from pprint import pprint
 
-# Don"t forget to create a .env file with this content:
+# Don't forget to create a .env file with this content:
 #   api_key = "YOUR KEY FROM DELTA"
 #   api_secret = "YOUR SECRET FROM DELTA"
 # You can get these on delta.exchange
@@ -137,7 +140,6 @@ def post_market_order(product_id, side, size, time_in_force, reduce_only):
         "reduce_only": reduce_only
     }
     query_string = f'?product_id={product_id}&side={side}&size={size}&order_type=market_order&time_in_force={time_in_force}&reduce_only={reduce_only}'
-    print(query_string)
     signature, timestamp = generate_signature_data("https://api.delta.exchange/v2/orders", "/v2/orders", "", "POST", query_string)
     headers = {
         'Content-Type': 'application/json',
@@ -148,19 +150,46 @@ def post_market_order(product_id, side, size, time_in_force, reduce_only):
     }
     r = requests.post('https://api.delta.exchange/v2/orders', params=params, headers=headers)
     response = r.json()
-
     if response["success"]:
         return response["result"]
         # {'result': {'average_fill_price': string,
         #             'created_at': string,
         #             'id': int,
-        #             'side': 'sell',
-        #             'size': 1},
+        #             'side': string,
+        #             'size': int},
     else:
         return None
 
-def market_long_btcusdt(size):
+def get_position(product_id):
+    params = {
+        "product_id": int(product_id),
+    }
+    query_string = f'?product_id={product_id}'
+    signature, timestamp = generate_signature_data("https://api.delta.exchange/v2/positions", "/v2/positions", "", "GET", query_string)
+    headers = {
+        'Accept': 'application/json',
+        'api-key': api_key,
+        'signature': signature,
+        'timestamp': timestamp
+    }
+    r = requests.get('https://api.delta.exchange/v2/positions', params=params, headers = headers)
+    response = r.json()
+    if response["success"]:
+        return response["result"]
+        # {'entry_price': None, 'size': 0, 'timestamp': 1625319008999873} <-- a 0 position is a ["success"]["result"] too!
+        # {'entry_price': '34581.50000000', 'size': 1, 'timestamp': 1625319163628629}
+    else:
+        return None
+
+def market_buy_btcusdt(size):
     return post_market_order(139, "buy", size, "gtc", "false")
 
-def market_short_btcusdt(size):
-    return post_market_order(139, "short", size, "gtc", "false")
+def market_sell_btcusdt(size):
+    return post_market_order(139, "sell", size, "gtc", "false")
+
+# Testing
+# pprint(market_buy_btcusdt(1))
+# pprint(get_position(139))
+# time.sleep(5)
+# pprint(market_sell_btcusdt(1))
+# pprint(get_position(139))
