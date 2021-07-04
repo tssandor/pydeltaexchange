@@ -7,8 +7,8 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 # Testing
-import time
-from pprint import pprint
+# import time
+# from pprint import pprint
 
 # Don't forget to create a .env file with this content:
 #   api_key = "YOUR KEY FROM DELTA"
