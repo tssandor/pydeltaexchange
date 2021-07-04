@@ -2,6 +2,14 @@
 
 **This module comes with absolutely no warranties. It is not complete or even very gracious with error handling, which you mostly need to do on your side. This code is primarly for exucational purposes.**
 
+If you find it useful, you are welcome to use my reflink to register on Delta: https://www.delta.exchange/app/signup/?code=SAXWLS (or alternatively use the referral code `SAXWLS`).
+
+Don't forget to create a .env file with this content:
+- `api_key = "YOUR KEY FROM DELTA"`
+- `api_secret = "YOUR SECRET FROM DELTA"`
+
+You can get these on delta.exchange
+
 ## Usage
 `import delta`
 
@@ -76,6 +84,7 @@ Returns a JSON where the most important fields are:
 - `'id'`: int,
 - `'side'`: string,
 - `'size'`: int
+
 It returns some additional fields, too, see https://docs.delta.exchange/#place-order for details.
 
 ### get_position(product_id)
@@ -110,6 +119,7 @@ Returns a JSON where the most important fields are:
 - `'id'`: int,
 - `'side'`: string,
 - `'size'`: int
+
 It returns some additional fields, too, see https://docs.delta.exchange/#place-order for details.
 
 ### market_buy_btcusdt(size)
@@ -128,6 +138,7 @@ Returns a JSON where the most important fields are:
 - `'id'`: int,
 - `'side'`: string,
 - `'size'`: int
+
 It returns some additional fields, too, see https://docs.delta.exchange/#place-order for details.
 
 ### market_sell_btcusdt(size)
@@ -146,4 +157,5 @@ Returns a JSON where the most important fields are:
 - `'id'`: int,
 - `'side'`: string,
 - `'size'`: int
+
 It returns some additional fields, too, see https://docs.delta.exchange/#place-order for details.
