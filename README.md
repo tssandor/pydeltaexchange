@@ -1,5 +1,7 @@
 # Python wrapper for Delta.Exchange
 
+**This module comes with absolutely no warranties. It is not complete or even very gracious with error handling, which you mostly need to do on your side. This code is primarly for exucational purposes.**
+
 ## Usage
 `import delta`
 
